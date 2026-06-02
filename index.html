@@ -10,6 +10,8 @@
 </head>
 <body class="min-h-screen flex">
 
+    <audio id="alert-siren" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav" preload="auto"></audio>
+
     <div id="toast-container" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center gap-4 pointer-events-none p-4"></div>
 
     <div id="welcome-screen">
@@ -65,16 +67,14 @@
                 </button>
                 
                 <div id="schedule-folder-content" class="folder-content">
-                    <div id="schedule-manager-container" class="p-5 border-t border-white/5 space-y-6 bg-slate-950/20">
-                        </div>
+                    <div id="schedule-manager-container" class="p-5 border-t border-white/5 space-y-6 bg-slate-950/20"></div>
                 </div>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/10 pt-8">
                 <div class="space-y-6">
                     <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vault Custom Identifiers</h4>
-                    <div id="vault-rename-inputs" class="space-y-3">
-                        </div>
+                    <div id="vault-rename-inputs" class="space-y-3"></div>
                 </div>
                 
                 <div class="space-y-6">

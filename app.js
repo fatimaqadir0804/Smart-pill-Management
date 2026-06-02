@@ -8,12 +8,22 @@ const DEFAULT_STATE = {
     audio: true
 };
 
-// Use a unique storage key to safely decouple from older broken cache systems
-let appState = JSON.parse(localStorage.getItem('medPro_State_v7_Final')) || DEFAULT_STATE;
-const alarmSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav');
+let appState = JSON.parse(localStorage.getItem('medPro_State_v8_Siren')) || DEFAULT_STATE;
 
 function enterSystem() {
     document.getElementById('welcome-screen').classList.add('hidden-screen');
+    
+    // Unlock and prime the native Web Audio context on the first user click
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const tempCtx = new AudioContext();
+            if (tempCtx.state === 'suspended') {
+                tempCtx.resume();
+            }
+        }
+    } catch(e) { console.log("Audio Context priming skipped."); }
+
     if (appState.audio && window.Notification && Notification.permission !== "granted") {
         Notification.requestPermission();
     }
@@ -51,7 +61,6 @@ function checkDayReset(vaultData) {
 }
 
 function init() {
-    // Data repair loop: Re-syncs Alpha, Beta, and other vaults seamlessly
     for (let i = 1; i <= 5; i++) { 
         const id = `c${i}`;
         if (appState[id]) {
@@ -61,11 +70,9 @@ function init() {
             if (appState[id].time3_active === undefined) appState[id].time3_active = true;
         }
     }
-    
     generateUI();
     generateSettingsUI();
     lucide.createIcons();
-    
     setInterval(() => {
         document.getElementById('system-clock').innerText = new Date().toLocaleTimeString();
     }, 1000);
@@ -75,6 +82,8 @@ function init() {
 function generateSettingsUI() {
     const vaultRenameContainer = document.getElementById('vault-rename-inputs');
     const scheduleContainer = document.getElementById('schedule-manager-container');
+    
+    if (!vaultRenameContainer || !scheduleContainer) return;
     
     vaultRenameContainer.innerHTML = "";
     scheduleContainer.innerHTML = "";
@@ -169,6 +178,7 @@ function getNextDoseInfo(vaultData) {
 function generateUI() {
     const grid = document.getElementById('container-grid');
     const inv = document.getElementById('inventory-controls');
+    if (!grid || !inv) return;
     grid.innerHTML = ""; inv.innerHTML = "";
     
     for (let i = 1; i <= 5; i++) {
@@ -257,7 +267,7 @@ function renderPillCountsOnly() {
 function render() {
     renderPillCountsOnly();
     renderLogs();
-    localStorage.setItem('medPro_State_v7_Final', JSON.stringify(appState));
+    localStorage.setItem('medPro_State_v8_Siren', JSON.stringify(appState));
 }
 
 function triggerDispense(id) {
@@ -274,6 +284,7 @@ function triggerDispense(id) {
                 status: "SUCCESS" 
             });
             
+            // Fires warning beep sequence if pills fall to 5 or fewer
             if (appState[id].pills <= 5) {
                 triggerLowStockAlert(id, appState[id].name, appState[id].pills);
             }
@@ -288,12 +299,58 @@ function triggerDispense(id) {
 
 function triggerLowStockAlert(id, vaultName, count) {
     if (!appState.audio) return;
-    alarmSound.play().catch(e => console.log("Audio pipeline active."));
+    
+    // NATIVE WEB AUDIO API SYNTHESIZER (LOUD DIGITAL BEEPING WARNING)
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const ctx = new AudioContext();
+            const now = ctx.currentTime;
+            
+            // 1. Create a Master Volume Gain Node
+            const mainVolume = ctx.createGain();
+            mainVolume.gain.setValueAtTime(1.0, now); // Max volume output
+            
+            // 2. Create the Oscillator (Square wave provides an ultra-sharp, loud digital response)
+            const osc = ctx.createOscillator();
+            osc.type = 'square'; 
+            osc.frequency.setValueAtTime(1000, now); // Piercing machinery-alert frequency (1000 Hz)
+            
+            // 3. Automated Staccato Burst Generation (4 explicit beeps over 1.2 seconds)
+            const beepDuration = 0.15; 
+            const pauseDuration = 0.15; 
+            let timeCursor = now;
+            
+            for (let i = 0; i < 4; i++) {
+                // Sound On
+                mainVolume.gain.setValueAtTime(1.0, timeCursor);
+                timeCursor += beepDuration;
+                
+                // Sound Off (Clean drops protect system channels from distortion)
+                mainVolume.gain.setValueAtTime(0.0, timeCursor);
+                timeCursor += pauseDuration;
+            }
+            
+            // 4. Connect logic to destination sound hardware
+            osc.connect(mainVolume);
+            mainVolume.connect(ctx.destination);
+            
+            // 5. Play and hard-stop sound to clear RAM pipeline completely
+            osc.start(now);
+            osc.stop(timeCursor);
+        }
+    } catch (error) {
+        console.warn("Web Audio context blocked or uninitialized.", error);
+        // Backup physical modal interrupt if audio card fails
+        alert(`CRITICAL ALERT: ${vaultName} has dropped to ${count} pills! Please refill.`);
+    }
+    
     showCustomToast(`Low Stock Warning`, `Vault <b>${vaultName}</b> has dropped to a critical level of <b>${count}</b> items.`, count === 0 ? "critical" : "warning", id);
 }
 
 function showCustomToast(title, bodyText, type = "warning", vaultId = null) {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     container.classList.remove('pointer-events-none');
     const toast = document.createElement('div');
     
@@ -367,7 +424,9 @@ document.getElementById('nav-dashboard').addEventListener('click', () => {
 });
 
 function renderLogs() {
-    document.getElementById('log-table-body').innerHTML = appState.logs.slice(0, 10).map(log => `
+    const tableBody = document.getElementById('log-table-body');
+    if (!tableBody) return;
+    tableBody.innerHTML = appState.logs.slice(0, 10).map(log => `
         <tr class="text-sm font-semibold text-slate-300">
             <td class="px-8 py-5 text-slate-500 font-mono text-[10px]">${log.timestamp}</td>
             <td class="px-8 py-5">${log.action}</td>
@@ -378,9 +437,12 @@ function renderLogs() {
 
 function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-' + tabId).classList.add('active');
+    const targetedTab = document.getElementById('tab-' + tabId);
+    if(targetedTab) targetedTab.classList.add('active');
+    
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('sidebar-active', 'text-white'));
-    document.getElementById('nav-' + tabId).classList.add('sidebar-active', 'text-white');
+    const targetedNav = document.getElementById('nav-' + tabId);
+    if(targetedNav) targetedNav.classList.add('sidebar-active', 'text-white');
 }
 
 function factoryReset() { if(confirm("Confirm Reset?")) { localStorage.clear(); location.reload(); } }
