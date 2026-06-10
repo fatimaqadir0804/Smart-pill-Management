@@ -6,36 +6,78 @@
     <title>MedTrack PRO | Enterprise Access</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#000000">
+    <link class="stylesheet" href="style.css">
+    <style>
+        #settings-screen {
+            position: fixed;
+            inset: 0;
+            background-color: #0f172a;
+            z-index: 2000;
+            display: none;
+        }
+        #settings-screen.active {
+            display: flex !important;
+            justify-content: center;
+            align-items: start;
+        }
+        .folder-content {
+            display: none;
+        }
+        .folder-content.open {
+            display: block !important;
+        }
+        #welcome-screen.hidden-screen {
+            display: none !important;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen flex bg-[#070b14] text-slate-100">
 
     <audio id="alert-siren" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav" preload="auto"></audio>
 
     <div id="toast-container" class="fixed inset-0 z-[10000] flex flex-col items-center justify-center gap-4 pointer-events-none p-4"></div>
 
-    <div id="welcome-screen">
-        <div class="absolute top-0 w-full p-8 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <i data-lucide="home" class="text-indigo-400 w-5 h-5 cursor-pointer hover:text-white transition"></i>
-                <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Main Portal</span>
+    <div id="custom-confirm-modal" class="fixed inset-0 z-[20000] hidden bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-8 rounded-[2.5rem] border border-rose-500/20 text-center shadow-2xl shadow-rose-500/5 transition-all transform scale-95 opacity-0 duration-300" id="confirm-card">
+            <div class="w-16 h-16 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="alert-octagon" class="w-8 h-8"></i>
             </div>
-            <div class="flex gap-6">
-                <button onclick="toggleSettings(true)" class="flex items-center gap-2 hover:text-indigo-400 transition">
-                    <i data-lucide="settings" class="w-5 h-5"></i>
-                    <span class="text-xs font-bold uppercase tracking-widest">Settings</span>
-                </button>
+            <h3 class="text-lg font-black uppercase tracking-wider text-white mb-2">System Wipe Requested</h3>
+            <p class="text-xs text-slate-400 font-semibold leading-relaxed mb-6">Are you sure you want complete system reset? This action cannot be undone .</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="closeCustomConfirm(false)" class="py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-black uppercase tracking-wider transition">Cancel</button>
+                <button onclick="closeCustomConfirm(true)" class="py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-lg shadow-rose-600/20">Wipe System</button>
             </div>
         </div>
+    </div>
 
-        <div class="text-center max-w-md px-6">
+    <div id="welcome-screen" class="fixed inset-0 z-[5000] bg-[#070b14] flex flex-col items-center justify-center">
+        <div class="absolute top-0 w-full p-8 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i data-lucide="shield" class="text-indigo-400 w-5 h-5"></i>
+                <span class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Secure Access Portal</span>
+            </div>
+            <div id="welcome-patient-display" class="flex flex-col items-end gap-1 font-mono text-right">
+                </div>
+        </div>
+
+        <div class="text-center max-w-md w-full px-6">
             <div class="w-20 h-20 bg-indigo-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/40 mx-auto mb-8">
                 <i data-lucide="shield-check" class="text-white w-10 h-10"></i>
             </div>
             <h1 class="text-4xl font-extrabold text-white mb-2 tracking-tight">MedTrack <span class="text-indigo-400">PRO</span></h1>
-            <p class="text-slate-400 font-medium mb-10 text-lg">Operational Access Terminal</p>
+            <p class="text-slate-400 font-medium mb-8 text-lg">Operational Access Terminal</p>
+            
+            <div class="space-y-3 mb-6">
+                <input type="password" id="gateway-password-input" placeholder="Enter Secure Access Pin/Password" class="w-full bg-white/5 text-white border border-white/10 font-bold text-sm p-4 rounded-2xl outline-none focus:border-indigo-500 placeholder-slate-500 text-center tracking-wide transition-all">
+            </div>
             
             <button onclick="enterSystem()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-sm transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2">
                 Unlock Dashboard <i data-lucide="lock-open" class="w-4 h-4"></i>
@@ -47,17 +89,56 @@
         <div class="absolute top-8 left-8 z-50">
             <button onclick="toggleSettings(false)" class="flex items-center gap-2 text-slate-400 hover:text-white transition">
                 <i data-lucide="chevron-left" class="w-6 h-6"></i>
-                <span class="font-bold text-xs uppercase tracking-widest">Back to Home</span>
+                <span class="font-bold text-xs uppercase tracking-widest">Back to Dashboard</span>
             </button>
         </div>
 
         <div class="glass-card p-8 md:p-10 rounded-[3rem] w-full max-w-4xl mx-4 my-20">
-            <h2 class="text-2xl font-black mb-8 border-b border-white/10 pb-4 flex items-center gap-3">
+            <h2 id="settings-modal-title" class="text-2xl font-black mb-8 border-b border-white/10 pb-4 flex items-center gap-3 text-white">
                 <i data-lucide="sliders" class="text-indigo-400"></i> Control Panel Configuration
             </h2>
+
+            <div id="wrapper-folder-patients" class="border border-white/10 rounded-2xl overflow-hidden bg-slate-900/40 mb-4">
+                <button onclick="toggleFolder('patients-folder-content', 'patients-folder-arrow')" class="w-full p-5 flex items-center justify-between text-left hover:bg-white/5 transition-all outline-none">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="folder-heart" class="text-indigo-400 w-5 h-5"></i>
+                        <div>
+                            <span class="text-sm font-black uppercase tracking-wider text-white">Patients Data Manager</span>
+                            <p class="text-[11px] text-slate-400 font-medium mt-0.5">Register, update, and manage core resident admission parameters</p>
+                        </div>
+                    </div>
+                    <i id="patients-folder-arrow" data-lucide="chevron-down" class="text-slate-400 w-5 h-5 transition-transform duration-300"></i>
+                </button>
+                
+                <div id="patients-folder-content" class="folder-content">
+                    <div class="p-5 border-t border-white/5 space-y-4 bg-slate-950/20">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <input type="text" id="patient-id-input" placeholder="ID / Medical Record #" class="bg-white/5 text-white border border-white/10 font-bold text-xs p-3 rounded-xl outline-none focus:border-indigo-500 placeholder-slate-500">
+                            <input type="text" id="patient-name-input" placeholder="Patient Full Name" class="bg-white/5 text-white border border-white/10 font-bold text-xs p-3 rounded-xl outline-none focus:border-indigo-500 placeholder-slate-500">
+                            <input type="password" id="patient-password-input" placeholder="Access Password" class="bg-white/5 text-white border border-white/10 font-bold text-xs p-3 rounded-xl outline-none focus:border-indigo-500 placeholder-slate-500">
+                            <button onclick="addOrUpdatePatient()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-wider py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                                <i data-lucide="user-plus" class="w-4 h-4"></i> Save Record
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto border border-white/5 rounded-xl bg-slate-900/40">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-white/5 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-white/5">
+                                        <th class="p-3">Record ID</th>
+                                        <th class="p-3">Patient Name</th>
+                                        <th class="p-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="patients-table-body" class="divide-y divide-white/5 text-xs text-slate-300 font-semibold">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
-            <div class="border border-white/10 rounded-2xl overflow-hidden bg-slate-900/40 mb-8">
-                <button onclick="toggleFolder()" class="w-full p-5 flex items-center justify-between text-left hover:bg-white/5 transition-all outline-none">
+            <div id="wrapper-folder-schedules" class="border border-white/10 rounded-2xl overflow-hidden bg-slate-900/40 mb-4">
+                <button onclick="toggleFolder('schedule-folder-content', 'folder-arrow')" class="w-full p-5 flex items-center justify-between text-left hover:bg-white/5 transition-all outline-none">
                     <div class="flex items-center gap-3">
                         <i data-lucide="folder-clock" class="text-indigo-400 w-5 h-5"></i>
                         <div>
@@ -69,20 +150,34 @@
                 </button>
                 
                 <div id="schedule-folder-content" class="folder-content">
-                    <div id="schedule-manager-container" class="p-5 border-t border-white/5 space-y-6 bg-slate-950/20"></div>
+                    <div id="schedule-manager-container" class="p-5 border-t border-white/5 space-y-6 bg-slate-950/20">
+                        </div>
+                </div>
+            </div>
+
+            <div id="wrapper-folder-renames" class="border border-white/10 rounded-2xl overflow-hidden bg-slate-900/40 mb-8">
+                <button onclick="toggleFolder('rename-folder-content', 'rename-folder-arrow')" class="w-full p-5 flex items-center justify-between text-left hover:bg-white/5 transition-all outline-none">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="folder-edit" class="text-indigo-400 w-5 h-5"></i>
+                        <div>
+                            <span class="text-sm font-black uppercase tracking-wider text-white">Vault Custom Identifiers</span>
+                            <p class="text-[11px] text-slate-400 font-medium mt-0.5">Modify personalized naming labels for local inventory modules</p>
+                        </div>
+                    </div>
+                    <i id="rename-folder-arrow" data-lucide="chevron-down" class="text-slate-400 w-5 h-5 transition-transform duration-300"></i>
+                </button>
+                
+                <div id="rename-folder-content" class="folder-content">
+                    <div id="vault-rename-inputs" class="p-5 border-t border-white/5 space-y-4 bg-slate-950/20">
+                        </div>
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/10 pt-8">
-                <div class="space-y-6">
-                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Vault Custom Identifiers</h4>
-                    <div id="vault-rename-inputs" class="space-y-3"></div>
-                </div>
-                
-                <div class="space-y-6">
-                    <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Global Preferences</h4>
+            <div id="wrapper-global-preferences" class="border-t border-white/10 pt-8">
+                <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Global Preferences</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label class="flex items-center justify-between p-4 bg-white/5 rounded-2xl cursor-pointer hover:bg-white/10">
-                        <span class="text-sm font-bold">Audio & Pop-up Alerts</span>
+                        <span class="text-sm font-bold text-white">Audio & Pop-up Alerts</span>
                         <input type="checkbox" id="audio-toggle" class="w-5 h-5 accent-indigo-500">
                     </label>
                     <button onclick="factoryReset()" class="w-full py-4 border border-rose-500/30 text-rose-500 rounded-2xl text-xs font-black uppercase hover:bg-rose-500/10 transition">
@@ -103,8 +198,8 @@
             <span class="text-white font-extrabold text-lg tracking-tight">MedTrack<span class="text-indigo-400">PRO</span></span>
         </div>
 
-        <nav class="space-y-2 flex-1">
-            <button onclick="showTab('dashboard')" id="nav-dashboard" class="sidebar-active w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm uppercase tracking-wide">
+        <nav class="space-y-2 flex-1 flex flex-col">
+            <button onclick="showTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all text-sm uppercase tracking-wide text-white">
                 <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Overview
             </button>
             <button onclick="showTab('history')" id="nav-history" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-slate-400 hover:bg-white/5 transition-all text-sm uppercase tracking-wide">
@@ -112,6 +207,12 @@
             </button>
             <button onclick="showTab('inventory')" id="nav-inventory" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-slate-400 hover:bg-white/5 transition-all text-sm uppercase tracking-wide">
                 <i data-lucide="package" class="w-5 h-5"></i> Inventory
+            </button>
+            <button onclick="togglePatientsOnly(true)" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-slate-400 hover:bg-white/5 transition-all text-sm uppercase tracking-wide">
+                <i data-lucide="user-round" class="w-5 h-5"></i> Patients Data
+            </button>
+            <button onclick="toggleSettings(true)" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-slate-400 hover:bg-white/5 transition-all text-sm uppercase tracking-wide mt-auto">
+                <i data-lucide="sliders" class="w-5 h-5"></i> System Settings
             </button>
         </nav>
     </aside>
@@ -126,6 +227,7 @@
             <section id="tab-dashboard" class="tab-content active">
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="container-grid"></div>
             </section>
+            
             <section id="tab-history" class="tab-content">
                 <div class="glass-card rounded-[2rem] overflow-hidden">
                     <table class="w-full text-left">
@@ -133,6 +235,7 @@
                     </table>
                 </div>
             </section>
+            
             <section id="tab-inventory" class="tab-content">
                 <div id="inventory-controls" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
             </section>
@@ -140,14 +243,5 @@
     </main>
 
     <script src="app.js"></script>
-    <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then(reg => console.log('Service Worker Registered!'))
-        .catch(err => console.log('Service Worker Setup Failed: ', err));
-    });
-  }
-</script>
 </body>
 </html>

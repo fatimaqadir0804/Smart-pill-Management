@@ -1,0 +1,42 @@
+# ====================================================================
+# MedTrack PRO - Production .gitignore Configuration
+# ====================================================================
+
+# 1. External Dependencies
+# Hide the massive external tools folder (rebuilt easily via npm install)
+node_modules/
+
+# 2. Local SQLite Databases & Transaction Logs
+# Explicitly hiding your exact database file and SQLite engine temp files
+MedTrackPRO.db
+MedTrackPRO.db-journal
+medpro.db
+*.db
+*.sqlite
+*.sqlite3
+
+# 3. Environment Secrets & API Keys
+# Hide environment files or local configurations (crucial if you add JWT secrets later)
+.env
+.env.local
+.env.*.local
+
+# 4. Logs & Testing Artifacts
+# Hide crash dumps or system log files generated during local execution
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 5. OS-Specific System Files
+# Hide system-specific desktop clutter that bloats the repository
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 6. Capacitor Mobile Framework Artifacts
+# Hide the generated native Android platform folder and web build outputs
+android/
+www/
+dist/
